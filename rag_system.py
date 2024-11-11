@@ -1,125 +1,56 @@
 import os
-from dotenv import load_dotenv
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
-
-# Load environment variables
-load_dotenv()
+import faiss
+import numpy as np
 
 class RAGSystem:
-    def __init__(self, documents_dir="./documents"):
-        self.documents_dir = documents_dir
-        self.embeddings = OpenAIEmbeddings()
+    def __init__(self):
         self.vector_store = None
-        self.qa_chain = None
-        
-    def load_documents(self):
-        if not os.path.exists(self.documents_dir):
-            os.makedirs(self.documents_dir)
-            print(f"Created documents directory: {self.documents_dir}")
-            
-        loader = DirectoryLoader(
-            self.documents_dir,
-            glob="**/*.txt",
-            loader_cls=TextLoader
-        )
-        documents = loader.load()
-        print(f"Loaded {len(documents)} documents")
-        return documents
-    
-    def split_documents(self, documents, chunk_size=1000, chunk_overlap=200):
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            separators=["\n\n", "\n", " ", ""]
-        )
-        texts = text_splitter.split_documents(documents)
-        print(f"Created {len(texts)} document chunks")
-        return texts
-    
-    def create_vector_store(self, texts):
-        self.vector_store = FAISS.from_documents(
-            texts,
-            self.embeddings
-        )
-        print("Vector store created successfully")
-    
-    def setup_qa_chain(self):
-        llm = ChatOpenAI(
-            model_name="gpt-3.5-turbo",
-            temperature=0.2,
-        )
-        
-        prompt_template = """
-        You are a helpful AI assistant. Use the following pieces of context to answer the question at the end.
-        If you don't know the answer, just say that you don't know. Don't try to make up an answer.
-        Try to provide specific examples and details from the context when possible.
-        
-        Context: {context}
-        
-        Question: {question}
-        
-        Answer: Let me help you with that.
-        """
-        
-        PROMPT = PromptTemplate(
-            template=prompt_template,
-            input_variables=["context", "question"]
-        )
-        
-        self.qa_chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            chain_type="stuff",
-            retriever=self.vector_store.as_retriever(
-                search_kwargs={"k": 4}
-            ),
-            chain_type_kwargs={
-                "prompt": PROMPT
-            }
-        )
-        print("QA chain setup completed")
-    
+        self.index = None
+        self.embedding_size = 768  # This should match your embeddings' dimension, e.g., for BERT
+
     def initialize_system(self):
-        print("\nInitializing RAG system...")
-        print("Step 1: Loading documents...")
-        documents = self.load_documents()
-        
-        print("\nStep 2: Processing documents...")
-        texts = self.split_documents(documents)
-        
-        print("\nStep 3: Creating vector store...")
-        self.create_vector_store(texts)
-        
-        print("\nStep 4: Setting up QA chain...")
-        self.setup_qa_chain()
-        
-        print("\nRAG system initialized successfully!")
-    
+        """Initialize the vector store, create the FAISS index if it doesn't exist."""
+        vector_store_path = 'vector_store/index.faiss'
+
+        if not os.path.exists(vector_store_path):
+            # If FAISS index doesn't exist, create a new one
+            self.index = faiss.IndexFlatL2(self.embedding_size)  # L2 distance index
+            self.vector_store = {}
+
+            # Optionally, create an empty file to save the index later
+            os.makedirs('vector_store', exist_ok=True)
+
+            # Save the empty index to a file
+            faiss.write_index(self.index, vector_store_path)
+        else:
+            # If the index exists, load it
+            self.index = faiss.read_index(vector_store_path)
+            self.vector_store = self.load_documents()  # Method to load stored documents if necessary
+
+    def save_vector_store(self, path='vector_store'):
+        """Save the current FAISS index."""
+        if self.index is not None:
+            faiss.write_index(self.index, os.path.join(path, 'index.faiss'))
+
+    def load_vector_store(self, path='vector_store'):
+        """Load existing documents and vectors."""
+        # Implement this based on your storage mechanism (e.g., in-memory, database, etc.)
+        # Here we just load the document index (if needed).
+        return {}
+
     def query(self, question):
-        if not self.qa_chain:
-            raise Exception("System not initialized. Please run initialize_system() first.")
+        """Query the vector store with a question."""
+        # You would need to generate embeddings for the question here
+        # This is a simplified example, you would have to convert your query into a vector
+        question_embedding = np.random.rand(1, self.embedding_size).astype('float32')  # Dummy embedding
         
-        try:
-            return self.qa_chain.invoke({"query": question})["result"]
-        except Exception as e:
-            return f"Error processing query: {str(e)}"
-    
-    def save_vector_store(self, path="vector_store"):
-        if self.vector_store:
-            self.vector_store.save_local(path)
-            print(f"Vector store saved to {path}")
-        else:
-            print("No vector store to save")
-    
-    def load_vector_store(self, path="vector_store"):
-        if os.path.exists(path):
-            # Allow dangerous deserialization if the source is trusted
-            self.vector_store = FAISS.load_local(path, self.embeddings, allow_dangerous_deserialization=True)
-            print(f"Vector store loaded from {path}")
-            self.setup_qa_chain()
-        else:
-            print(f"No vector store found at {path}")
+        # Search for the closest vectors
+        _, indices = self.index.search(question_embedding, k=5)  # Example: get 5 closest documents
+        results = [self.vector_store[i] for i in indices[0]]
+        return results
+
+    def add_document(self, doc, embedding):
+        """Add a document to the vector store."""
+        doc_id = len(self.vector_store)  # Simple way of generating unique ID
+        self.vector_store[doc_id] = doc  # Store the document
+        self.index.add(np.array([embedding], dtype='float32'))  # Add the embedding to FAISS index
