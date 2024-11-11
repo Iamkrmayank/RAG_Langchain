@@ -6,12 +6,8 @@ def initialize_rag_system():
     if 'rag_system' not in st.session_state:
         rag = RAGSystem()
         try:
-            # Try to load existing vector store
-            if os.path.exists('vector_store'):
-                rag.load_vector_store('vector_store')
-            else:
-                rag.initialize_system()
-                rag.save_vector_store('vector_store')
+            # Check if the vector store exists, if not initialize it
+            rag.initialize_system()  # This will create index.faiss if it doesn't exist
             st.session_state['rag_system'] = rag
         except Exception as e:
             st.error(f"Error initializing RAG system: {str(e)}")
@@ -42,8 +38,8 @@ def main():
             st.sidebar.success(f"Uploaded: {uploaded_file.name}")
 
             # Reinitialize the system with new document
-            st.session_state['rag_system'].initialize_system()
-            st.session_state['rag_system'].save_vector_store()
+            st.session_state['rag_system'].initialize_system()  # Re-initialize system with the new document
+            st.session_state['rag_system'].save_vector_store()  # Save updated vector store
             st.sidebar.success("System reinitialized with new document!")
         except Exception as e:
             st.sidebar.error(f"Error processing upload: {str(e)}")
@@ -52,7 +48,7 @@ def main():
     st.header("🔍 Ask a Question")
     
     # Get user question
-    question = st.text_area("Enter your question:")
+    question = st.text_input("Enter your question:")
     
     if st.button("Get Answer"):
         if question:
