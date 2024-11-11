@@ -6,8 +6,8 @@ def initialize_rag_system():
     if 'rag_system' not in st.session_state:
         rag = RAGSystem()
         try:
-            # Check if the vector store exists, if not initialize it
-            rag.initialize_system()  # This will create index.faiss if it doesn't exist
+            # Initialize the system, creating the index if needed
+            rag.initialize_system()
             st.session_state['rag_system'] = rag
         except Exception as e:
             st.error(f"Error initializing RAG system: {str(e)}")
