@@ -117,7 +117,8 @@ class RAGSystem:
     
     def load_vector_store(self, path="vector_store"):
         if os.path.exists(path):
-            self.vector_store = FAISS.load_local(path, self.embeddings)
+            # Allow dangerous deserialization if the source is trusted
+            self.vector_store = FAISS.load_local(path, self.embeddings, allow_dangerous_deserialization=True)
             print(f"Vector store loaded from {path}")
             self.setup_qa_chain()
         else:
