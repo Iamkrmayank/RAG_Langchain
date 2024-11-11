@@ -8,6 +8,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
+import streamlit as st
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,7 +33,7 @@ class RAGSystem:
             loader_cls=TextLoader
         )
         documents = loader.load()
-        print(f"Loaded {len(documents)} documents")
+        print(f"Loaded {len(documents)} documents")  # Add this line to check documents
         return documents
     
     def split_documents(self, documents, chunk_size=1000, chunk_overlap=200):
@@ -43,7 +44,7 @@ class RAGSystem:
             separators=["\n\n", "\n", " ", ""]
         )
         texts = text_splitter.split_documents(documents)
-        print(f"Created {len(texts)} document chunks")
+        print(f"Created {len(texts)} document chunks")  # Add this line to check chunks
         return texts
     
     def create_vector_store(self, texts):
@@ -118,6 +119,7 @@ class RAGSystem:
         
         try:
             response = self.qa_chain.invoke({"query": question})
+            print(f"Response from the model: {response}")  # Add this for debugging
             return response["result"]
         except Exception as e:
             print(f"Error processing query: {str(e)}")
@@ -137,25 +139,13 @@ class RAGSystem:
             try:
                 self.vector_store = FAISS.load_local(path, self.embeddings)
                 print(f"Vector store loaded from {path}")
-                self.setup_qa_chain()
             except Exception as e:
                 print(f"Error loading vector store: {str(e)}")
         else:
             print(f"No vector store found at {path}")
-    
-    def initialize_faiss_index(self):
-        """Initialize the FAISS index if not already loaded."""
-        vector_store_path = 'vector_store/index.faiss'
 
-        if not os.path.exists(vector_store_path):
-            self.index = faiss.IndexFlatL2(self.embeddings.embedding_size)  # L2 distance index
-            print("FAISS index created.")
-            # Save an empty index
-            faiss.write_index(self.index, vector_store_path)
-        else:
-            try:
-                self.index = faiss.read_index(vector_store_path)
-                print("FAISS index loaded.")
-            except Exception as e:
-                print(f"Error loading FAISS index: {e}")
-
+def initialize_rag_system():
+    """Helper function to initialize the RAG system."""
+    rag_system = RAGSystem()
+    rag_system.initialize_system()
+    return rag_system
