@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import os
 from rag_system import RAGSystem
@@ -33,12 +32,15 @@ def main():
     
     if uploaded_file:
         try:
+            # Ensure the documents directory exists
+            os.makedirs("documents", exist_ok=True)
+
             # Save uploaded file
             save_path = os.path.join("documents", uploaded_file.name)
             with open(save_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             st.sidebar.success(f"Uploaded: {uploaded_file.name}")
-            
+
             # Reinitialize the system with new document
             st.session_state['rag_system'].initialize_system()
             st.session_state['rag_system'].save_vector_store()
@@ -50,7 +52,7 @@ def main():
     st.header("🔍 Ask a Question")
     
     # Get user question
-    question = st.text_input("Enter your question:")
+    question = st.text_area("Enter your question:")
     
     if st.button("Get Answer"):
         if question:
