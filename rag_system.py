@@ -62,7 +62,7 @@ class RAGSystem:
         llm = ChatOpenAI(
             model_name="gpt-3.5-turbo",
             temperature=0.2,
-            api_key=st.secrets['OPENAI_KEY']
+            api_key=st.secrets['OPENAI_API_KEY']
         )
         
         prompt_template = """
