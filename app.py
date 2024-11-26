@@ -24,7 +24,7 @@ def main():
 
     # Document upload section
     st.sidebar.header("📄 Document Management")
-    uploaded_file = st.sidebar.file_uploader("Upload new document", type=['txt'])
+    uploaded_file = st.sidebar.file_uploader("Upload new document", type=['txt','pdf'])
     
     if uploaded_file:
         try:
